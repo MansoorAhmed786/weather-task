@@ -1,6 +1,6 @@
 import unittest
 import logging
-from task import import_data, analyze_data, export_data
+from args_parser import import_data, analyze_data, export_data, validate_date,validate_date_range, validate_file_format, validate_date_in_csv
 
 class TestWeatherAnalyzer(unittest.TestCase):
     def setUp(self):
@@ -33,6 +33,44 @@ class TestWeatherAnalyzer(unittest.TestCase):
         result = analyze_data.analyze_data('2016-01-03', '2016-01-03', data_list)
         val = export_data.write_to_csv('output.csv',result)
         self.assertTrue(val)
+
+    def test_validate_date(self):
+        date='2000-12-01 to 2016-12-01'
+        result =validate_date(date)
+        self.assertTrue(result)
+
+    def test_validate_invalid_date(self):
+        date='12-01 to 2016-12-01'
+        result =validate_date(date)
+        self.assertFalse(result)
+
+    def test_validate_date_range(self):
+        date='2000-12-01 to 2016-12-01'
+        result =validate_date_range(date)
+        self.assertTrue(result)
+          
+    def test_validate_invalid_date_range(self):
+        date='2025-12-01 to 2016-12-01'
+        result =validate_date_range(date)
+        self.assertFalse(result)
+
+    def test_validate_file_format(self):
+        file = 'hello.txt'
+        result = validate_file_format(file)
+        self.assertTrue(result)
+
+    def test_validate_invalid_file_format(self):
+        file = 'hello.hello'
+        result = validate_file_format(file)
+        self.assertTrue(result)
+
+    def test_validate_date_present(self):
+        date = '2016-01-03 to 2016-01-03'
+        self.assertTrue(validate_date_in_csv('weather_1.csv',date))
+
+    def test_validate_invalid_date_present(self):
+        date = '2222-10-10 to 2222-10-10'
+        self.assertFalse(validate_date_in_csv('weather_1.csv',date))
 
 
 if __name__ == '__main__':
