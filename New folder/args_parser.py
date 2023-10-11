@@ -14,6 +14,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
         self.add_argument('--cleann', type=str, help='Enter File name to clean')
         self.add_argument('--state', nargs='*', help='State name(s)')
         self.add_argument('--location', type = str, help='State name(s)')
+        self.add_argument('--explain', type = str, help='State name(s)')
 
     def validate_args(self, args):
         if args.range and not Validate.validate_date_range(args.range):
@@ -38,6 +39,9 @@ class CustomArgumentParser(argparse.ArgumentParser):
             export(args)
         if args.cleann:
             Validate.clean_data_file(args.cleann)
+        
+        if args.explain:
+            print(Validate.explain(args.explain))
 
         if args.location and args.range:
             location.location_range(args.location,args.range)
@@ -119,6 +123,47 @@ class Validate:
         max_occurrence_state = state_counts.idxmax()
 
         return max_occurrence_state
+    
+    def explain(file_path):
+        df = pd.read_csv(file_path)
+        df['Date.Full'] = pd.to_datetime(df['Date.Full'])
+        df['Data.Temperature.Avg Temp'] = pd.to_numeric(df['Data.Temperature.Avg Temp'])
+        df['Data.Temperature.Max Temp'] = pd.to_numeric(df['Data.Temperature.Max Temp'])
+        df['Data.Temperature.Min Temp'] = pd.to_numeric(df['Data.Temperature.Min Temp'])
+        df['Data.Wind.Direction'] = pd.to_numeric(df['Data.Wind.Direction'])
+        df['Data.Wind.Speed'] = pd.to_numeric(df['Data.Wind.Speed'])
+        min_date = df['Date.Full'].min()
+        min_temp = df['Data.Temperature.Avg Temp'].min()
+        min_max_temp = df['Data.Temperature.Max Temp'].min()
+        min_min_temp = df['Data.Temperature.Min Temp'].min()
+        min_wind_direction = df['Data.Wind.Direction'].min()
+        min_wind_speed = df['Data.Wind.Speed'].min()
+        max_temp = df['Data.Temperature.Avg Temp'].max()
+        max_max_temp = df['Data.Temperature.Max Temp'].max()
+        max_min_temp = df['Data.Temperature.Min Temp'].max()
+        max_wind_direction = df['Data.Wind.Direction'].max()
+        max_wind_speed = df['Data.Wind.Speed'].max()
+        max_date = df['Date.Full'].max()
+        empty_entries=[]
+        empty_entries.append(df['Data.Precipitation'].isnull().sum())
+        empty_entries.append(df['Date.Full'].isnull().sum())
+        empty_entries.append(df['Date.Month'].isnull().sum())
+        empty_entries.append(df['Date.Week of'].isnull().sum())
+        empty_entries.append(df['Date.Year'].isnull().sum())
+        empty_entries.append(df['Station.City'].isnull().sum())
+        empty_entries.append(df['Station.Code'].isnull().sum())
+        empty_entries.append(df['Station.Location'].isnull().sum())
+        empty_entries.append(df['Station.State'].isnull().sum())
+        empty_entries.append(df['Data.Temperature.Avg Temp'].isnull().sum())
+        empty_entries.append(df['Data.Temperature.Max Temp'].isnull().sum())
+        empty_entries.append(df['Data.Temperature.Min Temp'].isnull().sum())
+        empty_entries.append(df['Data.Wind.Direction'].isnull().sum())
+        empty_entries.append(df['Data.Wind.Speed'].isnull().sum())
+        print(empty_entries)
+        print(f"Minimum date is {min_date} Maximum date is {max_date} Minimum average temprate is {min_temp} minimum max_temprate is {min_max_temp}")
+        print(f"Minimum min temprate is {min_min_temp} Minimum wind direction is {min_wind_direction} Minimum wind speed is {min_wind_speed} max_temprate is {max_temp}")
+        print(f"Maximum max temprate is {max_max_temp} Maximum min temprature is {max_min_temp} Maximum wind direction is {max_wind_direction} max wind speed is {max_wind_speed}")
+
 
 class import_data:
     def import_dat(file_path):
@@ -167,16 +212,11 @@ class analyze_data:
             average_wind_speed = sum(float(num) for num in wind_speed)/len(wind_speed)
             min_temperature = min(int(num) for num in list)
             max_temperature = max(int(num) for num in list)
-            print(([entry.get('avg_temp') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature]))
+            # print(([entry.get('avg_temp') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature]))
             state = ([entry.get('station_location','station_state') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature])
             month = ([entry.get('date_month') for entry in filtered_data if max_temperature==int(entry.get('avg_temp'))])
             year = ([entry.get('date_year') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
             day = ([entry.get('date_full') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
-
-            print(state)
-            print(month)
-            print(year)
-            print(day)
             logging.info("Data is validating")
             return average_temperature, min_temperature, max_temperature,average_max_temperature,average_min_temperature,average_wind_speed,average_wind_direction
             
@@ -239,4 +279,3 @@ def export(args):
         logging.error("Doesnot found any data")
         return
     export_data.write_to_csv(args.format, values)
-
