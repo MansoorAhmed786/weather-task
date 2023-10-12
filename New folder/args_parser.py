@@ -15,22 +15,28 @@ class CustomArgumentParser(argparse.ArgumentParser):
         self.add_argument('--state', nargs='*', help='State name(s)')
         self.add_argument('--location', type = str, help='State name(s)')
         self.add_argument('--explain', type = str, help='State name(s)')
+        self.add_argument('--analyzestate', nargs='*', type = str, help='State name(s)')
 
     def validate_args(self, args):
         if args.range and not Validate.validate_date_range(args.range):
             logging.info("Invalid date range format. Please provide a valid range.")
+            return
 
         if args.format and not Validate.validate_file_format(args.format, allowed_extensions=[".csv", ".txt"]):
             logging.info("Invalid file format. Please provide a valid format.")
+            return
 
         if args.file and not os.path.isfile(args.file):
             logging.info("File not found. Please provide a valid file.")
+            return
 
-        if args.range and not Validate.validate_date_in_csv(args.file, args.range):
+        if args.range and args.file and not Validate.validate_date_in_csv(args.file, args.range):
             logging.info("date not found")
+            return
 
         if args.range and not Validate.validate_date_range(args.range):
             logging.info("date can't be grater")
+            return
 
         if args.state==[]:
             print(Validate.find_state_with_maximum_occurrence(args.file))
@@ -43,6 +49,13 @@ class CustomArgumentParser(argparse.ArgumentParser):
         if args.explain:
             print(Validate.explain(args.explain))
 
+        if args.analyzestate==[] and args.range:
+            result = analyzeState(args)
+            print(f"State is {result[0]}")
+            print(f"Year is {result[1]}")
+            print(f"Month is {result[2]}")
+            print(f"Day is {result[3]}")
+
         if args.location and args.range:
             location.location_range(args.location,args.range)
         elif args.location:
@@ -53,14 +66,6 @@ class CustomArgumentParser(argparse.ArgumentParser):
         if command not in valid_commands:
             logging.info("Invalid command. Please choose from: {}".format(valid_commands))
 
-    def validate_flags(args):
-        allowed_flags = {'--file', '--range', '--format'}
-
-        for arg in args:
-            if arg not in allowed_flags:
-                logging.info(f"Invalid flag '{arg}'. Allowed flags are {allowed_flags}")
-        return args
-    
 
 class Validate:
     def validate_date(date_range):
@@ -160,9 +165,18 @@ class Validate:
         empty_entries.append(df['Data.Wind.Direction'].isnull().sum())
         empty_entries.append(df['Data.Wind.Speed'].isnull().sum())
         print(empty_entries)
-        print(f"Minimum date is {min_date} Maximum date is {max_date} Minimum average temprate is {min_temp} minimum max_temprate is {min_max_temp}")
-        print(f"Minimum min temprate is {min_min_temp} Minimum wind direction is {min_wind_direction} Minimum wind speed is {min_wind_speed} max_temprate is {max_temp}")
-        print(f"Maximum max temprate is {max_max_temp} Maximum min temprature is {max_min_temp} Maximum wind direction is {max_wind_direction} max wind speed is {max_wind_speed}")
+        print(f'''      Minimum date is {min_date}  
+                  Maximum date is {max_date}
+                  Minimum average temprate is {min_temp} 
+                  Minimum max_temprate is {min_max_temp}''')
+        print(f'''      Minimum min temprate is {min_min_temp}
+                  Minimum wind direction is {min_wind_direction}
+                  Minimum wind speed is {min_wind_speed} 
+                  Max_temprate is {max_temp}''')
+        print(f'''Maximum max temprate is {max_max_temp}
+                  Maximum min temprature is {max_min_temp} 
+                  Maximum wind direction is {max_wind_direction} 
+                  Max wind speed is {max_wind_speed}''')
 
 
 class import_data:
@@ -212,17 +226,33 @@ class analyze_data:
             average_wind_speed = sum(float(num) for num in wind_speed)/len(wind_speed)
             min_temperature = min(int(num) for num in list)
             max_temperature = max(int(num) for num in list)
-            # print(([entry.get('avg_temp') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature]))
-            state = ([entry.get('station_location','station_state') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature])
-            month = ([entry.get('date_month') for entry in filtered_data if max_temperature==int(entry.get('avg_temp'))])
-            year = ([entry.get('date_year') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
-            day = ([entry.get('date_full') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
+            # state = ([entry.get('station_location','station_state') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature])
+            # month = ([entry.get('date_month') for entry in filtered_data if max_temperature==int(entry.get('avg_temp'))])
+            # year = ([entry.get('date_year') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
+            # day = ([entry.get('date_full') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
             logging.info("Data is validating")
             return average_temperature, min_temperature, max_temperature,average_max_temperature,average_min_temperature,average_wind_speed,average_wind_direction
             
         except Exception as e:
             logging.error(f"Error analyzing data: {str(e)}")
 
+    def state(start, end,dataaa):
+        try:
+            start_Date = datetime.strptime(start, "%Y-%m-%d")
+            end_Date = datetime.strptime(end, "%Y-%m-%d")
+            filtered_data = [entry for entry in dataaa if start_Date <= datetime.strptime(entry.get('date_full'), "%Y-%m-%d") <= end_Date]
+            list = ([entry.get('avg_temp') for entry in filtered_data])
+            min_temperature = min(int(num) for num in list)
+            max_temperature = max(int(num) for num in list)
+            state = ([entry.get('station_location','station_state') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature])
+            month = ([entry.get('date_month') for entry in filtered_data if max_temperature==int(entry.get('avg_temp'))])
+            year = ([entry.get('date_year') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
+            day = ([entry.get('date_full') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
+            logging.info("Data is validating")
+            return state, year, month, day
+            
+        except Exception as e:
+            logging.error(f"Error analyzing data: {str(e)}")
 class export_data:
     def write_to_csv(file_name, data):
         try:
@@ -271,6 +301,12 @@ def analyze(args):
     data = calc(args)
     date_range = args.range.split(' to ')
     result =analyze_data.analyze_data(date_range[0], date_range[1], data)
+    return result
+
+def analyzeState(args):
+    data = calc(args)
+    date_range = args.range.split(' to ')
+    result =analyze_data.state(date_range[0], date_range[1], data)
     return result
 
 def export(args):
