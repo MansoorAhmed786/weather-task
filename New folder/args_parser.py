@@ -8,29 +8,29 @@ import csv
 class CustomArgumentParser(argparse.ArgumentParser):
     def __init__(self):
         super(CustomArgumentParser, self).__init__()
-        self.add_argument('--file', type=str, help='Enter File name')
-        self.add_argument('--range', type=str, help='Enter range of date')
-        self.add_argument('--format', type=str, help='Enter export file name')
-        self.add_argument('--cleann', type=str, help='Enter File name to clean')
-        self.add_argument('--state', nargs='*', help='State name(s)')
-        self.add_argument('--location', type = str, help='State name(s)')
-        self.add_argument('--explain', type = str, help='State name(s)')
-        self.add_argument('--analyzestate', nargs='*', type = str, help='State name(s)')
+        self.add_argument('--inputFile', type=str, help='Enter File name and file must exist e.g: example.csv')
+        self.add_argument('--range', type=str, help='Enter range of date "YYYY-MM-DD to YYYY-MM-DD"')
+        self.add_argument('--output', type=str, help='Enter export file name only .csv and .txt extensions is allowed ')
+        self.add_argument('--max', type=str, help='Enter column name which you want to get maximum occurance example: Station.City(s)')
+        self.add_argument('--getLocation', type = str, help='It will return location of maximum average temprature(s)')
+        self.add_argument('--explain', type = str, help='It will expain all information about the given file')
+        self.add_argument('--averageData', nargs='*', type = str, help='It will print state, year, month and day of maximum temprature')
 
     def validate_args(self, args):
+
         if args.range and not Validate.validate_date_range(args.range):
             logging.info("Invalid date range format. Please provide a valid range.")
             return
 
-        if args.format and not Validate.validate_file_format(args.format, allowed_extensions=[".csv", ".txt"]):
+        if args.output and not Validate.validate_file_format(args.output, allowed_extensions=[".csv", ".txt"]):
             logging.info("Invalid file format. Please provide a valid format.")
             return
 
-        if args.file and not os.path.isfile(args.file):
+        if args.inputFile and not os.path.isfile(args.inputFile):
             logging.info("File not found. Please provide a valid file.")
             return
 
-        if args.range and args.file and not Validate.validate_date_in_csv(args.file, args.range):
+        if args.range and args.inputFile and not Validate.validate_date_in_csv(args.inputFile, args.range):
             logging.info("date not found")
             return
 
@@ -38,33 +38,26 @@ class CustomArgumentParser(argparse.ArgumentParser):
             logging.info("date can't be grater")
             return
 
-        if args.state==[]:
-            print(Validate.find_state_with_maximum_occurrence(args.file))
+        if args.max and args.inputFile:
+            logging.info(f"Maximum is {fileFunctions.find_state_with_maximum_occurrence(args.max, args.inputFile)}")
 
-        if args.format and args.file and args.range:
+        if args.output and args.inputFile and args.range:
             export(args)
-        if args.cleann:
-            Validate.clean_data_file(args.cleann)
         
         if args.explain:
-            print(Validate.explain(args.explain))
+            fileFunctions.explain(args.explain)
 
-        if args.analyzestate==[] and args.range:
+        if args.averageData==[] and args.range:
             result = analyzeState(args)
-            print(f"State is {result[0]}")
-            print(f"Year is {result[1]}")
-            print(f"Month is {result[2]}")
-            print(f"Day is {result[3]}")
+            logging.info(f"State is {result[0]}")
+            logging.info(f"Year is {result[1]}")
+            logging.info(f"Month is {result[2]}")
+            logging.info(f"Day is {result[3]}")
 
-        if args.location and args.range:
-            location.location_range(args.location,args.range)
-        elif args.location:
-            location.location(args.location)
-
-    def validate_commands(self, command):
-        valid_commands = ['--file', '--format', '--export']
-        if command not in valid_commands:
-            logging.info("Invalid command. Please choose from: {}".format(valid_commands))
+        if args.getLocation and args.range:
+            fileFunctions.location_range(args.getLocation,args.range)
+        elif args.getLocation:
+            fileFunctions.location(args.getLocation)
 
 
 class Validate:
@@ -113,17 +106,11 @@ class Validate:
             return False
 
         return True
+class fileFunctions:
 
-    def clean_data_file(file_path):
-        reader = csv.reader(open(file_path))
-        for row in reader:
-            for i, x in enumerate(row):
-                        if len(x)< 1:
-                                x = row[i] = 0
-
-    def find_state_with_maximum_occurrence(file_path):
+    def find_state_with_maximum_occurrence(column,file_path):
         df = pd.read_csv(file_path)
-        state_counts = df['Station.State'].value_counts()
+        state_counts = df[column].value_counts()
 
         max_occurrence_state = state_counts.idxmax()
 
@@ -132,6 +119,7 @@ class Validate:
     def explain(file_path):
         df = pd.read_csv(file_path)
         df['Date.Full'] = pd.to_datetime(df['Date.Full'])
+        df['Date.Full'] = df['Date.Full'].dt.date
         df['Data.Temperature.Avg Temp'] = pd.to_numeric(df['Data.Temperature.Avg Temp'])
         df['Data.Temperature.Max Temp'] = pd.to_numeric(df['Data.Temperature.Max Temp'])
         df['Data.Temperature.Min Temp'] = pd.to_numeric(df['Data.Temperature.Min Temp'])
@@ -165,22 +153,21 @@ class Validate:
         empty_entries.append(df['Data.Wind.Direction'].isnull().sum())
         empty_entries.append(df['Data.Wind.Speed'].isnull().sum())
         print(empty_entries)
-        print(f'''      Minimum date is {min_date}  
+        logging.info(f'''      Minimum date is {min_date}  
                   Maximum date is {max_date}
                   Minimum average temprate is {min_temp} 
                   Minimum max_temprate is {min_max_temp}''')
-        print(f'''      Minimum min temprate is {min_min_temp}
+        logging.info(f'''      Minimum min temprate is {min_min_temp}
                   Minimum wind direction is {min_wind_direction}
                   Minimum wind speed is {min_wind_speed} 
                   Max_temprate is {max_temp}''')
-        print(f'''Maximum max temprate is {max_max_temp}
+        logging.info(f'''Maximum max temprate is {max_max_temp}
                   Maximum min temprature is {max_min_temp} 
                   Maximum wind direction is {max_wind_direction} 
                   Max wind speed is {max_wind_speed}''')
 
 
-class import_data:
-    def import_dat(file_path):
+    def import_data(file_path):
         data_list = [] 
         try:
             with open(file_path, 'r') as file:
@@ -207,8 +194,7 @@ class import_data:
         except Exception as e:
             logging.error(f"Error importing data: {str(e)}")
         return data_list
-    
-class analyze_data:
+
     def analyze_data(start, end,dataaa):
         try:
             start_Date = datetime.strptime(start, "%Y-%m-%d")
@@ -226,10 +212,6 @@ class analyze_data:
             average_wind_speed = sum(float(num) for num in wind_speed)/len(wind_speed)
             min_temperature = min(int(num) for num in list)
             max_temperature = max(int(num) for num in list)
-            # state = ([entry.get('station_location','station_state') for entry in filtered_data if int(entry.get('avg_temp'))==max_temperature])
-            # month = ([entry.get('date_month') for entry in filtered_data if max_temperature==int(entry.get('avg_temp'))])
-            # year = ([entry.get('date_year') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
-            # day = ([entry.get('date_full') for entry in filtered_data if int(entry.get('avg_temp'))==min_temperature])
             logging.info("Data is validating")
             return average_temperature, min_temperature, max_temperature,average_max_temperature,average_min_temperature,average_wind_speed,average_wind_direction
             
@@ -253,7 +235,7 @@ class analyze_data:
             
         except Exception as e:
             logging.error(f"Error analyzing data: {str(e)}")
-class export_data:
+
     def write_to_csv(file_name, data):
         try:
             with open(file_name, 'a', newline='') as csv_file:
@@ -271,10 +253,8 @@ class export_data:
             print(file_name)
             logging.info(f'Error writing to {file_name}: {e}')
 
-
-class location:
     def location_range(file_path, date_range):
-        dataa = import_data.import_dat(file_path)
+        dataa = fileFunctions.import_data(file_path)
         date_range = date_range.split(' to ')
         start_Date = datetime.strptime(date_range[0], "%Y-%m-%d")
         end_Date = datetime.strptime(date_range[1], "%Y-%m-%d")
@@ -286,7 +266,7 @@ class location:
         print(state,location)
 
     def location(file_path):
-        dataa = import_data.import_dat(file_path)
+        dataa = fileFunctions.import_data(file_path)
         list = ([entry.get('avg_temp') for entry in dataa])
         max_temperature = max(int(num) for num in list)
         state = ([entry.get('station','station_code') for entry in dataa if int(entry.get('avg_temp'))==max_temperature])
@@ -294,19 +274,19 @@ class location:
         print(state,location)
 
 def calc(args):
-    data = import_data.import_dat(args.file)
+    data = fileFunctions.import_data(args.inputFile)
     return data
 
 def analyze(args):
     data = calc(args)
     date_range = args.range.split(' to ')
-    result =analyze_data.analyze_data(date_range[0], date_range[1], data)
+    result =fileFunctions.analyze_data(date_range[0], date_range[1], data)
     return result
 
 def analyzeState(args):
     data = calc(args)
     date_range = args.range.split(' to ')
-    result =analyze_data.state(date_range[0], date_range[1], data)
+    result =fileFunctions.state(date_range[0], date_range[1], data)
     return result
 
 def export(args):
@@ -314,4 +294,4 @@ def export(args):
     if values == None:
         logging.error("Doesnot found any data")
         return
-    export_data.write_to_csv(args.format, values)
+    fileFunctions.write_to_csv(args.output, values)
